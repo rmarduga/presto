@@ -6220,4 +6220,21 @@ public abstract class AbstractTestQueries
         assertQuery("select cardinality(map_subset(map(array[1,2,3,4], array['a', 'b', 'c', 'd']), array[10,20]))", "select 0");
         assertQuery("select cardinality(map_subset(map(), array[10,20]))", "select 0");
     }
+
+    @Test
+    public void test()
+    {
+        // Test for lambda expression without capture can be found in TestLambdaExpression
+        String query = "WITH user_orders AS (\n" +
+                "SELECT * FROM ( \n" +
+                "VALUES(1, ARRAY[\n" +
+                "CAST( ROW('2022-11-01', 10, 100) AS ROW(ds VARCHAR, price BIGINT, quantity INT) ), \n" +
+                "CAST( ROW('2022-11-02', 1,  101) AS ROW(ds VARCHAR, price BIGINT, quantity INT) ), \n" +
+                "CAST( ROW('2022-11-01', 9,  100) AS ROW(ds VARCHAR, price BIGINT, quantity INT) ), \n" +
+                "CAST( ROW('2022-11-01', 11, 100) AS ROW(ds VARCHAR, price BIGINT, quantity INT) ) \n" +
+                "] ) ) t(userId, orders) )\n" +
+                "SELECT userId FROM user_orders WHERE CARDINALITY(FILTER(orders, x -> x.ds = '2022-11-02')) > 0";
+
+        assertQuery(query, "VALUES 1");
+    }
 }

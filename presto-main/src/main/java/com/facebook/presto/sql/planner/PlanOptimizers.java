@@ -25,6 +25,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.iterative.IterativeOptimizer;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.iterative.properties.LogicalPropertiesProviderImpl;
+import com.facebook.presto.sql.planner.iterative.rule.AddArrayLoopRowExpressions;
 import com.facebook.presto.sql.planner.iterative.rule.AddIntermediateAggregations;
 import com.facebook.presto.sql.planner.iterative.rule.CanonicalizeExpressions;
 import com.facebook.presto.sql.planner.iterative.rule.CombineApproxPercentileFunctions;
@@ -293,6 +294,14 @@ public class PlanOptimizers
                         .add(new PruneRedundantProjectionAssignments())
                         .build());
 
+        IterativeOptimizer addArrayLoopRowExpressionsOptimizer = new IterativeOptimizer(
+                ruleStats,
+                statsCalculator,
+                estimatedExchangesCostCalculator,
+                ImmutableSet.<Rule<?>>builder()
+                        .addAll(new AddArrayLoopRowExpressions(metadata).rules())
+                        .build());
+
         IterativeOptimizer caseExpressionPredicateRewriter = new IterativeOptimizer(
                 ruleStats,
                 statsCalculator,
@@ -476,6 +485,7 @@ public class PlanOptimizers
                                 new PushAggregationThroughOuterJoin(metadata.getFunctionAndTypeManager()))),
                 inlineProjections,
                 simplifyRowExpressionOptimizer, // Re-run the SimplifyExpressions to simplify any recomposed expressions from other optimizations
+                addArrayLoopRowExpressionsOptimizer,
                 projectionPushDown,
                 new UnaliasSymbolReferences(metadata.getFunctionAndTypeManager()), // Run again because predicate pushdown and projection pushdown might add more projections
                 new PruneUnreferencedOutputs(), // Make sure to run this before index join. Filtered projections may not have all the columns.

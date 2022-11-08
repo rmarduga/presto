@@ -141,5 +141,6 @@ public class SpecialFormExpression
         DEREFERENCE,
         ROW_CONSTRUCTOR,
         BIND,
+        ARRAY_LOOP,
     }
 }
