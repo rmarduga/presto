@@ -24,6 +24,8 @@ import com.facebook.presto.sql.tree.ArithmeticBinaryExpression;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.google.common.collect.ImmutableList;
 
+import javax.lang.model.type.ArrayType;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -337,5 +339,10 @@ public final class FunctionResolution
     public boolean isEqualFunction(FunctionHandle functionHandle)
     {
         return functionAndTypeManager.getFunctionMetadata(functionHandle).getOperatorType().map(EQUAL::equals).orElse(false);
+    }
+
+    public boolean isArrayFunction(FunctionHandle functionHandle)
+    {
+        return functionAndTypeManager.getFunctionMetadata(functionHandle).getArgumentTypes().get(0) instanceof ArrayType;
     }
 }

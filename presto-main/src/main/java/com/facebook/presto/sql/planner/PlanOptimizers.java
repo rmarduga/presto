@@ -25,6 +25,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.iterative.IterativeOptimizer;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.iterative.properties.LogicalPropertiesProviderImpl;
+import com.facebook.presto.sql.planner.iterative.rule.AddArrayLoopRowExpressions;
 import com.facebook.presto.sql.planner.iterative.rule.AddIntermediateAggregations;
 import com.facebook.presto.sql.planner.iterative.rule.CanonicalizeExpressions;
 import com.facebook.presto.sql.planner.iterative.rule.CombineApproxPercentileFunctions;
@@ -293,6 +294,14 @@ public class PlanOptimizers
                         .add(new PruneRedundantProjectionAssignments())
                         .build());
 
+        IterativeOptimizer addArrayLoopRowExpressionsOptimizer = new IterativeOptimizer(
+                ruleStats,
+                statsCalculator,
+                estimatedExchangesCostCalculator,
+                ImmutableSet.<Rule<?>>builder()
+                        .addAll(new AddArrayLoopRowExpressions(metadata).rules())
+                        .build());
+
         IterativeOptimizer caseExpressionPredicateRewriter = new IterativeOptimizer(
                 ruleStats,
                 statsCalculator,
@@ -476,6 +485,7 @@ public class PlanOptimizers
                                 new PushAggregationThroughOuterJoin(metadata.getFunctionAndTypeManager()))),
                 inlineProjections,
                 simplifyRowExpressionOptimizer, // Re-run the SimplifyExpressions to simplify any recomposed expressions from other optimizations
+                addArrayLoopRowExpressionsOptimizer,
                 projectionPushDown,
                 new UnaliasSymbolReferences(metadata.getFunctionAndTypeManager()), // Run again because predicate pushdown and projection pushdown might add more projections
                 new PruneUnreferencedOutputs(), // Make sure to run this before index join. Filtered projections may not have all the columns.
@@ -511,7 +521,8 @@ public class PlanOptimizers
                         estimatedExchangesCostCalculator,
                         ImmutableSet.of(new EliminateCrossJoins())),
                 predicatePushDown,
-                simplifyRowExpressionOptimizer); // Should always run simplifyOptimizer after predicatePushDown
+                simplifyRowExpressionOptimizer,  // Should always run simplifyOptimizer after predicatePushDown
+                addArrayLoopRowExpressionsOptimizer);
 
         builder.add(new IterativeOptimizer(
                         ruleStats,
@@ -553,6 +564,7 @@ public class PlanOptimizers
 
         builder.add(predicatePushDown); // Run predicate push down one more time in case we can leverage new information from layouts' effective predicate
         builder.add(simplifyRowExpressionOptimizer); // Should be always run after PredicatePushDown
+        builder.add(addArrayLoopRowExpressionsOptimizer); // Should be always run after PredicatePushDown
 
         builder.add(new MetadataQueryOptimizer(metadata));
 
@@ -564,7 +576,8 @@ public class PlanOptimizers
                         estimatedExchangesCostCalculator,
                         ImmutableSet.of(new EliminateCrossJoins())),
                 predicatePushDown,
-                simplifyRowExpressionOptimizer); // Should always run simplifyOptimizer after predicatePushDown
+                simplifyRowExpressionOptimizer, // Should always run simplifyOptimizer after predicatePushDown
+                addArrayLoopRowExpressionsOptimizer);
 
         builder.add(new OptimizeMixedDistinctAggregations(metadata));
         builder.add(new IterativeOptimizer(
@@ -648,6 +661,7 @@ public class PlanOptimizers
         builder.add(predicatePushDown); // Run predicate push down one more time in case we can leverage new information from layouts' effective predicate
         builder.add(new RemoveUnsupportedDynamicFilters(metadata.getFunctionAndTypeManager()));
         builder.add(simplifyRowExpressionOptimizer); // Should be always run after PredicatePushDown
+        builder.add(addArrayLoopRowExpressionsOptimizer); // Should be always run after PredicatePushDown
         builder.add(projectionPushDown);
         builder.add(inlineProjections);
         builder.add(new UnaliasSymbolReferences(metadata.getFunctionAndTypeManager())); // Run unalias after merging projections to simplify projections more efficiently

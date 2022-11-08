@@ -1661,4 +1661,26 @@ public class TestLogicalPlanner
 
         assertPlanSucceeded(joinQuery2, enableLeafNodeInPlanExceedException);
     }
+
+    @Test
+    public void testAddArrayLoopNode()
+    {
+        Session enableLeafNodeInPlanExceedException = Session.builder(this.getQueryRunner().getDefaultSession())
+                .setSystemProperty(MAX_LEAF_NODES_IN_PLAN, Integer.toString(10))
+                .setSystemProperty(LEAF_NODE_LIMIT_ENABLED, Boolean.toString(true))
+                .build();
+
+        String joinQuery = "WITH user_orders AS (\n" +
+                "SELECT * FROM ( \n" +
+                "VALUES(1, ARRAY[\n" +
+                "CAST( ROW('2022-11-01', 10, 100) AS ROW(ds VARCHAR, price BIGINT, quantity INT) ), \n" +
+                "CAST( ROW('2022-11-02', 1,  101) AS ROW(ds VARCHAR, price BIGINT, quantity INT) ), \n" +
+                "CAST( ROW('2022-11-01', 9,  100) AS ROW(ds VARCHAR, price BIGINT, quantity INT) ), \n" +
+                "CAST( ROW('2022-11-01', 11, 100) AS ROW(ds VARCHAR, price BIGINT, quantity INT) ) \n" +
+                "] ) ) t(userId, orders) )\n" +
+                "SELECT userId FROM user_orders WHERE CARDINALITY(FILTER(orders, x -> x.ds = '2022-11-02')) > 0";
+
+        assertPlan(joinQuery, anyTree());
+
+    }
 }
