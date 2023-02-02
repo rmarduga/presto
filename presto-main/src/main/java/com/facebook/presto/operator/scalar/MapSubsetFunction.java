@@ -17,11 +17,18 @@ import com.facebook.presto.common.block.Block;
 import com.facebook.presto.common.block.BlockBuilder;
 import com.facebook.presto.common.type.Type;
 import com.facebook.presto.operator.aggregation.TypedSet;
+import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
 import com.facebook.presto.spi.function.Description;
 import com.facebook.presto.spi.function.ScalarFunction;
+import com.facebook.presto.spi.function.ScalarFunctionDescriptor;
 import com.facebook.presto.spi.function.SqlType;
+import com.facebook.presto.spi.function.StaticMethodPointer;
 import com.facebook.presto.spi.function.TypeParameter;
-@ScalarFunction("map_subset")
+@ScalarFunction(value = "map_subset", descriptor = @ScalarFunctionDescriptor(
+        isAccessingInputValues = false,
+        argumentIndicesContainingMapOrArray = {0},
+        outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "allSubfieldsRequired")},
+        lambdaDescriptors = {}))
 @Description("returns a map where the keys are a subset of the given array of keys")
 public final class MapSubsetFunction
 {

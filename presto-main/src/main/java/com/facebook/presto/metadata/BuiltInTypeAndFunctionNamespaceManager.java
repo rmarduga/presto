@@ -1057,7 +1057,8 @@ public class BuiltInTypeAndFunctionNamespaceManager
                     signature.getKind(),
                     JAVA,
                     function.isDeterministic(),
-                    function.isCalledOnNullInput());
+                    function.isCalledOnNullInput(),
+                    function.getComplexTypeFunctionDescriptor());
         }
         else if (function instanceof SqlInvokedFunction) {
             SqlInvokedFunction sqlFunction = (SqlInvokedFunction) function;
@@ -1072,7 +1073,8 @@ public class BuiltInTypeAndFunctionNamespaceManager
                     SQL,
                     function.isDeterministic(),
                     function.isCalledOnNullInput(),
-                    sqlFunction.getVersion());
+                    sqlFunction.getVersion(),
+                    sqlFunction.getComplexTypeFunctionDescriptor());
         }
         else {
             return new FunctionMetadata(
@@ -1082,7 +1084,8 @@ public class BuiltInTypeAndFunctionNamespaceManager
                     signature.getKind(),
                     JAVA,
                     function.isDeterministic(),
-                    function.isCalledOnNullInput());
+                    function.isCalledOnNullInput(),
+                    function.getComplexTypeFunctionDescriptor());
         }
     }
 

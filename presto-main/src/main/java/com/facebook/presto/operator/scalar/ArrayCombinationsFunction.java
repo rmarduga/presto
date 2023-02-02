@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.operator.scalar;
 
+import com.facebook.presto.common.Subfield;
 import com.facebook.presto.common.block.ArrayBlock;
 import com.facebook.presto.common.block.Block;
 import com.facebook.presto.common.block.DictionaryBlock;
@@ -23,11 +24,17 @@ import com.facebook.presto.common.type.Type;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.function.Description;
 import com.facebook.presto.spi.function.ScalarFunction;
+import com.facebook.presto.spi.function.ScalarFunctionDescriptor;
 import com.facebook.presto.spi.function.SqlType;
+import com.facebook.presto.spi.function.StaticMethodPointer;
 import com.facebook.presto.spi.function.TypeParameter;
 import com.google.common.annotations.VisibleForTesting;
 
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.facebook.presto.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static com.facebook.presto.util.Failures.checkCondition;
@@ -37,9 +44,14 @@ import static java.lang.StrictMath.toIntExact;
 import static java.lang.String.format;
 import static java.lang.System.arraycopy;
 import static java.util.Arrays.setAll;
+import static java.util.Collections.unmodifiableList;
 
 @Description("Returns n-element combinations from array")
-@ScalarFunction("combinations")
+@ScalarFunction(value = "combinations", descriptor = @ScalarFunctionDescriptor(
+        isAccessingInputValues = false,
+        argumentIndicesContainingMapOrArray = {0},
+        outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ArrayCombinationsFunction.class, method = "removeSecondPathElement")},
+        lambdaDescriptors = {}))
 public final class ArrayCombinationsFunction
 {
     private ArrayCombinationsFunction() {}
@@ -133,5 +145,19 @@ public final class ArrayCombinationsFunction
         for (int i = 0; i < to; i++) {
             combination[i] = i;
         }
+    }
+
+    /**
+     * Removes the second path element from every subfield in 'subfields'.
+     *
+     * @param subfields set of Subfield to transform
+     * @return transformed copy of the input set of subfields with removed the second path element.
+     */
+    public static Optional<Set<Subfield>> removeSecondPathElement(Set<Subfield> subfields)
+    {
+        return Optional.of(subfields.stream().map(subfield -> new Subfield(subfield.getRootName(),
+                        unmodifiableList(
+                                Stream.concat(Arrays.asList(subfield.getPath().get(0)).stream(), subfield.getPath().stream().skip(2)).collect(Collectors.toList()))))
+                .collect(Collectors.toSet()));
     }
 }

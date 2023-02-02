@@ -16,12 +16,19 @@ package com.facebook.presto.operator.scalar;
 import com.facebook.presto.common.block.Block;
 import com.facebook.presto.common.block.BlockBuilder;
 import com.facebook.presto.common.type.Type;
+import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
 import com.facebook.presto.spi.function.Description;
 import com.facebook.presto.spi.function.ScalarFunction;
+import com.facebook.presto.spi.function.ScalarFunctionDescriptor;
 import com.facebook.presto.spi.function.SqlType;
+import com.facebook.presto.spi.function.StaticMethodPointer;
 import com.facebook.presto.spi.function.TypeParameter;
 
-@ScalarFunction("map_values")
+@ScalarFunction(value = "map_values", descriptor = @ScalarFunctionDescriptor(
+        isAccessingInputValues = false,
+        argumentIndicesContainingMapOrArray = {0},
+        outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "allSubfieldsRequired")},
+        lambdaDescriptors = {}))
 @Description("Returns the values of the given map(K,V) as an array")
 public final class MapValues
 {

@@ -16,9 +16,14 @@ package com.facebook.presto.operator.scalar;
 import com.facebook.presto.common.block.Block;
 import com.facebook.presto.common.block.BlockBuilder;
 import com.facebook.presto.common.type.Type;
+import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
 import com.facebook.presto.spi.function.Description;
 import com.facebook.presto.spi.function.ScalarFunction;
+import com.facebook.presto.spi.function.ScalarFunctionDescriptor;
+import com.facebook.presto.spi.function.ScalarFunctionLambdaArgumentDescriptor;
+import com.facebook.presto.spi.function.ScalarFunctionLambdaDescriptor;
 import com.facebook.presto.spi.function.SqlType;
+import com.facebook.presto.spi.function.StaticMethodPointer;
 import com.facebook.presto.spi.function.TypeParameter;
 import com.facebook.presto.spi.function.TypeParameterSpecialization;
 import io.airlift.slice.Slice;
@@ -26,7 +31,19 @@ import io.airlift.slice.Slice;
 import static java.lang.Boolean.TRUE;
 
 @Description("return array containing elements that match the given predicate")
-@ScalarFunction(value = "filter", deterministic = false)
+@ScalarFunction(value = "filter", deterministic = false, descriptor = @ScalarFunctionDescriptor(
+        isAccessingInputValues = true,
+        argumentIndicesContainingMapOrArray = {0},
+        outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "allSubfieldsRequired")},
+        lambdaDescriptors = {
+                @ScalarFunctionLambdaDescriptor(
+                        callArgumentIndex = 1,
+                        lambdaArgumentDescriptors = {
+                                @ScalarFunctionLambdaArgumentDescriptor(
+                                        lambdaArgumentIndex = 0,
+                                        callArgumentIndex = 0,
+                                        lambdaArgumentToInputTransformationFunction = @StaticMethodPointer(
+                                                clazz = ComplexTypeFunctionDescriptor.class, method = "prependAllSubscripts"))})}))
 public final class ArrayFilterFunction
 {
     private ArrayFilterFunction() {}
