@@ -159,7 +159,7 @@ public class TestHiveLogicalPlanner
     {
         return HiveQueryRunner.createQueryRunner(
                 ImmutableList.of(ORDERS, LINE_ITEM, CUSTOMER, NATION),
-                ImmutableMap.of("experimental.pushdown-subfields-enabled", "true"),
+                ImmutableMap.of("experimental.pushdown-subfields-enabled", "true", "experimental.pushdown-subfields-from-lambda-enabled", "true"),
                 Optional.empty());
     }
 
@@ -824,6 +824,7 @@ public class TestHiveLogicalPlanner
         }
     }
 
+    @Test
     @DataProvider(name = "optimize_metadata_filter_properties")
     public static Object[][] optimizeMetadataFilterProperties()
     {
@@ -1207,6 +1208,147 @@ public class TestHiveLogicalPlanner
                 ImmutableMap.of("y", toSubfields("y[1]")));
         assertPushdownSubfields(format("SELECT id, min(z[1][2]).e.e1 FROM %s GROUP BY 1", tableName), tableName,
                 ImmutableMap.of("z", toSubfields("z[1][2]")));
+    }
+
+    @Test
+    public void testPushDownSubfieldsFromArrayFunctionLambdas()
+    {
+        assertUpdate("CREATE TABLE test_pushdown_subfields_from_array_lambda(id bigint, " +
+                "a array(bigint), " +
+                "b array(array(varchar)), " +
+                "mi map(int,array(row(a1 bigint, a2 double))), " +
+                "mv map(varchar,array(row(a1 bigint, a2 double))), " +
+                "mr map(row(a1 bigint, a2 double),row(a1 bigint, a2 double)), " +
+                "r row(a array(row(a1 bigint, a2 double))), " +
+                "y array(row(a bigint, b varchar, c double, d row(d1 bigint, d2 double))), " +
+                "yy array(row(a bigint, b varchar, c double, d row(d1 bigint, d2 double))), " +
+                "z array(array(row(p bigint, e row(e1 bigint, e2 varchar)))))");
+
+        assertPushdownSubfieldsFromArrayLambda("test_pushdown_subfields_from_array_lambda");
+    }
+    private void assertPushdownSubfieldsFromArrayLambda(String tableName)
+    {
+        // functions that are not outputing all subfields
+        assertPushdownSubfields(format("SELECT ALL_MATCH(y, x -> x.a > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        assertPushdownSubfields(format("SELECT ANY_MATCH(y, x -> x.a > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        assertPushdownSubfields(format("SELECT NONE_MATCH(y, x -> x.d.d1 > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].d.d1")));
+
+        assertPushdownSubfields(format("SELECT TRANSFORM(y, x -> x.d.d1) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].d.d1")));
+
+        // This is a tricky case with CARDINALITY function. When we do not have any subfields accessed, we can choose the smallest one.
+        assertPushdownSubfields(format("SELECT CARDINALITY(y) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        assertPushdownSubfields(format("SELECT CARDINALITY(FILTER(y, x -> true)) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        assertPushdownSubfields(format("SELECT CARDINALITY(FILTER(y, x -> position('9' IN x.b) > 0)) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].b")));
+
+        assertPushdownSubfields(format("SELECT TRANSFORM(y, x -> ROW(x.a, x.d.d1)) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a", "y[*].d.d1")));
+
+        assertPushdownSubfields(format("SELECT TRANSFORM(r.a, x -> x.a1) FROM %s", tableName), tableName,
+                ImmutableMap.of("r", toSubfields("r.a[*].a1")));
+
+        assertPushdownSubfields(format("SELECT ZIP_WITH(y, yy, (x, xx) -> ROW(x.a, xx.d.d1)) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a"), "yy", toSubfields("yy[*].d.d1")));
+
+        // functions that outputing all subfields and accept functional parameter
+
+        //filter
+        assertPushdownSubfields(format("SELECT FILTER(y, x -> x.a > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields()));
+
+        assertPushdownSubfields(format("SELECT CARDINALITY(FILTER(y, x -> x.a > 0)) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        //array_sort
+        assertPushdownSubfields(format("SELECT ARRAY_SORT(y, (l, r) -> IF(l.a < r.a, 1, IF(l.a = r.a, 0, -1))) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields()));
+
+        assertPushdownSubfields(format("SELECT ANY_MATCH(SLICE(ARRAY_SORT(y, (l, r) -> IF(l.a < r.a, 1, IF(l.a = r.a, 0, -1))), 1, 3), x -> x.c > 0) FROM %s", tableName),
+                tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a", "y[*].c")));
+
+        assertPushdownSubfields(format("SELECT TRANSFORM(ARRAY_SORT(y), x -> x.a) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields())); // ARRAY_SORT(y) function accesses all the subfields as there is no lambda function provided.
+
+        //combinations
+        assertPushdownSubfields(format("SELECT TRANSFORM(COMBINATIONS(y, 3), x -> x[1].a) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*][1].a")));
+
+        // flatten
+        assertPushdownSubfields(format("SELECT TRANSFORM(FLATTEN(z), x -> x.p) FROM %s", tableName), tableName,
+                ImmutableMap.of("z", toSubfields("z[*][*].p")));
+
+        //reverse
+        assertPushdownSubfields(format("SELECT TRANSFORM(REVERSE(y), x -> x.a) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        //shuffle
+        assertPushdownSubfields(format("SELECT TRANSFORM(SHUFFLE(y), x -> x.a) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        //slice
+        assertPushdownSubfields(format("SELECT TRANSFORM(SLICE(y, 1, 5), x -> x.a) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        //trim_array
+        assertPushdownSubfields(format("SELECT TRANSFORM(TRIM_ARRAY(y, 5), x -> x.a) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].a")));
+
+        // concat
+        assertPushdownSubfields(format("SELECT TRANSFORM(y || yy,  x -> x.d.d1) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].d.d1"), "yy", toSubfields("yy[*].d.d1")));
+
+        assertPushdownSubfields(format("SELECT TRANSFORM(CONCAT(y, yy)  ,  x -> x.d.d1) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].d.d1"), "yy", toSubfields("yy[*].d.d1")));
+
+        // map_values
+        assertPushdownSubfields(format("SELECT ANY_MATCH(MAP_VALUES(mr), x -> x.a1 > 100) FROM %s", tableName), tableName,
+                ImmutableMap.of("mr", toSubfields("mr[*].a1")));
+
+        // map_top_n_values
+        assertPushdownSubfields(format("SELECT ANY_MATCH(MAP_TOP_N_VALUES(mr, 10, (x, y) -> IF(x.a1 < y.a1, -1, IF(x.a1 = y.a1, 0, 1))), x -> x.a2 > 100) FROM %s", tableName),
+                tableName,
+                ImmutableMap.of("mr", toSubfields("mr[*].a1", "mr[*].a2")));
+
+        // Simple test of different column type of the array argument
+        assertPushdownSubfields(format("SELECT ALL_MATCH(y, x -> x.d.d1 > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields("y[*].d.d1")));
+
+        assertPushdownSubfields(format("SELECT ANY_MATCH(r.a, x -> x.a1 > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("r", toSubfields("r.a[*].a1")));
+
+        assertPushdownSubfields(format("SELECT ANY_MATCH(z[1], x -> x.e.e1 > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("z", toSubfields("z[1][*].e.e1")));
+
+        assertPushdownSubfields(format("SELECT ANY_MATCH(mi[1], x -> x.a1 > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("mi", toSubfields("mi[1][*].a1")));
+
+        assertPushdownSubfields(format("SELECT ANY_MATCH(mv['a'], x -> x.a1 > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("mv", toSubfields("mv[\"a\"][*].a1")));
+        
+        // element_at
+        assertPushdownSubfields(format("SELECT ANY_MATCH(ELEMENT_AT(mi, 42), x -> x.a1 > 100) FROM %s", tableName), tableName,
+                ImmutableMap.of("mi", toSubfields("mi[42][*].a1")));
+
+        assertPushdownSubfields(format("SELECT ANY_MATCH(ELEMENT_AT(mv, '42'), x -> x.a1 > 100) FROM %s", tableName), tableName,
+                ImmutableMap.of("mv", toSubfields("mv[\"42\"][*].a1")));
+
+        //Queries that lack full support
+        assertPushdownSubfields(format("SELECT ANY_MATCH(ZIP_WITH(y, yy, (x, xx) -> COALESCE(x,xx)), x -> x.a > 0) FROM %s", tableName), tableName,
+                ImmutableMap.of("y", toSubfields(), "yy", toSubfields())); // coalesce() doesn't access subfields. we are accessing only y[*].a and yy[*].a
+
+        assertPushdownSubfields(format("SELECT ANY_MATCH(TRANSFORM(r.a, x -> cast(x AS row(quantity bigint, price double))), x -> x.quantity > 100) FROM %s", tableName), tableName,
+                ImmutableMap.of("r", toSubfields("r.a"))); // in fact, we are accessing only r.a[*].a1
     }
 
     @Test
