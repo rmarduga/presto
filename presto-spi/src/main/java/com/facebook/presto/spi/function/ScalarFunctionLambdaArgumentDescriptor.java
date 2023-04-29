@@ -42,5 +42,6 @@ public @interface ScalarFunctionLambdaArgumentDescriptor
      * If transformation succeeded, then the returned value contains the transformed set of lambda subfields. Otherwise, the function must return <code>Optional.empty()</code>
      * value.
      */
-    StaticMethodPointer lambdaArgumentToInputTransformationFunction();
+    StaticMethodPointer lambdaArgumentToInputTransformationFunction() default @StaticMethodPointer(
+            clazz = ComplexTypeFunctionDescriptor.class, method = "prependAllSubscripts");
 }

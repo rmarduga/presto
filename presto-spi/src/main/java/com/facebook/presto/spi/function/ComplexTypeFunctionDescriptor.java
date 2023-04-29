@@ -52,10 +52,11 @@ public class ComplexTypeFunctionDescriptor
     /**
      * Set of indices of the function arguments containing map or array arguments. Those arguments are important because all accessed subfields collected so far relate only to
      * those map or array arguments and will be passed only to those arguments during the expression analysis phase.
-     * If <code>argumentIndicesContainingMapOrArray</code> is <code>Optional.empty()</code>, it indicates that all function arguments are of the map or array types.
-     * For example, <code>CONCAT</code> function accepts the variadic argument containing only array arguments.
-     * If <code>argumentIndicesContainingMapOrArray</code> is an empty set, it indicates that none of the  function arguments are of the map or array types and thus all the
-     * collected subfields will be discarded.
+     * If <code>argumentIndicesContainingMapOrArray</code> is <code>Optional.empty()</code>, it indicates that accessed subfields collected so far relate to all function arguments
+     * are of the map or array types. For the vast majority of function, this value should be used.
+     * If the value of <code>argumentIndicesContainingMapOrArray</code> is present, it indicates that accessed subfields collected so far relate only to subset of the arguments.
+     * For example, in <code>MapConstructor</code> function accessed map value subfield from outer call relate only to second argument and therefore for this
+     * <code>argumentIndicesContainingMapOrArray</code> needs to be set to <code>Optional.of(ImmutableSet.of(1))</code>.
      */
     private final Optional<Set<Integer>> argumentIndicesContainingMapOrArray;
 

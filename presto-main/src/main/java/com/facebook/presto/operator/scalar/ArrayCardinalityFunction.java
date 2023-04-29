@@ -26,7 +26,6 @@ import com.facebook.presto.spi.function.TypeParameter;
 @Description("Returns the cardinality (length) of the array")
 @ScalarFunction(value = "cardinality", descriptor = @ScalarFunctionDescriptor(
         isAccessingInputValues = false,
-        argumentIndicesContainingMapOrArray = {0},
         outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "clearRequiredSubfields")},
         lambdaDescriptors = {}))
 public final class ArrayCardinalityFunction

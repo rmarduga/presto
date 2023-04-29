@@ -49,7 +49,8 @@ public class FunctionDescriptorParser
         return new ComplexTypeFunctionDescriptor(
                 descriptor.isAccessingInputValues(),
                 parseLambdaDescriptors(descriptor.lambdaDescriptors()),
-                Optional.of(ImmutableSet.copyOf(Arrays.stream(descriptor.argumentIndicesContainingMapOrArray()).iterator())),
+                descriptor.argumentIndicesContainingMapOrArray().length == 1 ?
+                        Optional.of(ImmutableSet.copyOf(Arrays.stream(descriptor.argumentIndicesContainingMapOrArray()[0].value()).iterator())) : Optional.empty(),
                 descriptor.outputToInputTransformationFunction().length == 1 ?
                         Optional.of(parseSubfieldTransformationFunction(descriptor.outputToInputTransformationFunction()[0])) :
                         Optional.empty());

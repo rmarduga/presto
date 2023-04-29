@@ -49,7 +49,6 @@ import static java.util.Collections.unmodifiableList;
 @Description("Returns n-element combinations from array")
 @ScalarFunction(value = "combinations", descriptor = @ScalarFunctionDescriptor(
         isAccessingInputValues = false,
-        argumentIndicesContainingMapOrArray = {0},
         outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ArrayCombinationsFunction.class, method = "removeSecondPathElement")},
         lambdaDescriptors = {}))
 public final class ArrayCombinationsFunction

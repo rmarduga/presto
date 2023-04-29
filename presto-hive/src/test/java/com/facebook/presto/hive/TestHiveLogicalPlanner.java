@@ -1461,16 +1461,16 @@ public class TestHiveLogicalPlanner
             assertPushdownSubfields("SELECT ANY_MATCH(y, x -> x IS NULL)  FROM " + tableName, tableName,
                     ImmutableMap.of("y", toSubfields("y[*].$"))); // only checks whether entire struct is null and does not access struct subfields
 
+            // bind
+            assertPushdownSubfields("SELECT ANY_MATCH(y, x -> x.a > mv['42'][1].a1) FROM " + tableName, tableName, // missing support for extracting subfields from BIND expression
+                    ImmutableMap.of("mv", toSubfields("mv[\"42\"][1].a1"))); // In fact, we are accessing only y.a and mv['a'].[*].a1
+
             // Queries that lack full support
 
             // Special form expression
             // cast
             assertPushdownSubfields("SELECT ANY_MATCH(TRANSFORM(r.a, x -> cast(x AS row(quantity bigint, price double))), x -> x.quantity > 100) FROM " + tableName, tableName,
                     ImmutableMap.of("r", toSubfields("r.a"))); // in fact, we are accessing only r.a[*].a1
-
-            // bind
-            assertPushdownSubfields("SELECT ANY_MATCH(y, x -> x.a > mv['42'][1].a1) FROM " + tableName, tableName, // missing support for extracting subfields from BIND expression
-                    ImmutableMap.of("y", toSubfields(), "mv", toSubfields())); // In fact, we are accessing only y.a and mv['a'].[*].a1
 
             // WHERE clause
             // lambda subfield extraction from WHERE clause is not supported when hive.pushdown-filter-enabled=true. The entire field will be included in

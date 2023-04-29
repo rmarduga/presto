@@ -29,13 +29,12 @@ import com.facebook.presto.common.block.BlockBuilderStatus;
 import com.facebook.presto.common.type.MapType;
 import com.facebook.presto.common.type.Type;
 import com.facebook.presto.spi.function.CodegenScalarFunction;
-import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
 import com.facebook.presto.spi.function.Description;
+import com.facebook.presto.spi.function.IntArray;
 import com.facebook.presto.spi.function.ScalarFunctionDescriptor;
 import com.facebook.presto.spi.function.ScalarFunctionLambdaArgumentDescriptor;
 import com.facebook.presto.spi.function.ScalarFunctionLambdaDescriptor;
 import com.facebook.presto.spi.function.SqlType;
-import com.facebook.presto.spi.function.StaticMethodPointer;
 import com.facebook.presto.spi.function.TypeParameter;
 import com.facebook.presto.sql.gen.SqlTypeBytecodeExpression;
 import com.facebook.presto.sql.gen.lambda.BinaryFunctionInterface;
@@ -70,18 +69,14 @@ public final class MapFilterFunction
     private MapFilterFunction() {}
 
     @CodegenScalarFunction(value = "map_filter", deterministic = false, descriptor = @ScalarFunctionDescriptor(
-            isAccessingInputValues = true,
-            argumentIndicesContainingMapOrArray = {0},
-            outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "allSubfieldsRequired")},
+            argumentIndicesContainingMapOrArray = @IntArray(0),
             lambdaDescriptors = {
                     @ScalarFunctionLambdaDescriptor(
                             callArgumentIndex = 1,
                             lambdaArgumentDescriptors = {
                                     @ScalarFunctionLambdaArgumentDescriptor(
                                             lambdaArgumentIndex = 1,
-                                            callArgumentIndex = 0,
-                                            lambdaArgumentToInputTransformationFunction = @StaticMethodPointer(
-                                                    clazz = ComplexTypeFunctionDescriptor.class, method = "prependAllSubscripts"))})}))
+                                            callArgumentIndex = 0)})}))
     @Description("return map containing entries that match the given predicate")
     @TypeParameter("K")
     @TypeParameter("V")

@@ -681,7 +681,10 @@ public class PushdownSubfields
                 }
 
                 Set<Integer> argumentIndicesContainingMapOrArray = functionDescriptor.getArgumentIndicesContainingMapOrArray()
-                        .orElse(IntStream.range(0, call.getArguments().size()).boxed().collect(toImmutableSet()));
+                        .orElse(IntStream.range(0, call.getArguments().size())
+                                .filter(argIndex -> isMapOrArrayOfRowType(call.getArguments().get(argIndex)))
+                                .boxed()
+                                .collect(toImmutableSet()));
 
                 // All the lambda subfields collected in outer functions relate only to the arguments of the function specified in
                 // functionDescriptor.argumentIndicesContainingMapOrArray.
@@ -746,13 +749,18 @@ public class PushdownSubfields
                     }
                     else {
                         RowExpression argument = call.getArguments().get(callArgumentIndex);
-                        if ((argument.getType() instanceof ArrayType && ((ArrayType) argument.getType()).getElementType() instanceof RowType) ||
-                                (argument.getType() instanceof MapType && ((MapType) argument.getType()).getValueType() instanceof RowType)) {
+                        if (isMapOrArrayOfRowType(argument)) {
                             argumentIndexToLambdaSubfieldsMapBuilder.put(callArgumentIndex, ImmutableSet.of(new Subfield("", ImmutableList.of(allSubscripts(), noSubfield()))));
                         }
                     }
                 }
                 return argumentIndexToLambdaSubfieldsMapBuilder.build();
+            }
+
+            private static boolean isMapOrArrayOfRowType(RowExpression argument)
+            {
+                return (argument.getType() instanceof ArrayType && ((ArrayType) argument.getType()).getElementType() instanceof RowType) ||
+                        (argument.getType() instanceof MapType && ((MapType) argument.getType()).getValueType() instanceof RowType);
             }
 
             private Optional<Map<Integer, Set<Subfield>>> collectLambdaSubfields(CallExpression call, LambdaDescriptor lambdaDescriptor)
@@ -820,7 +828,6 @@ public class PushdownSubfields
             }
 
             /**
-             *
              * Adds lambda subfields from the context to the list of the required subfields of the field/subscript/subfield provided in parameter 'input'. This function should be
              * invoked
              * once we reached leaf node while visiting the expression tree. Effectively, it prunes all unaccessed subfields of the 'input'.

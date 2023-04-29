@@ -17,14 +17,12 @@ import com.facebook.presto.common.block.Block;
 import com.facebook.presto.common.block.BlockBuilder;
 import com.facebook.presto.common.type.Type;
 import com.facebook.presto.spi.PrestoException;
-import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
 import com.facebook.presto.spi.function.Description;
 import com.facebook.presto.spi.function.ScalarFunction;
 import com.facebook.presto.spi.function.ScalarFunctionDescriptor;
 import com.facebook.presto.spi.function.ScalarFunctionLambdaArgumentDescriptor;
 import com.facebook.presto.spi.function.ScalarFunctionLambdaDescriptor;
 import com.facebook.presto.spi.function.SqlType;
-import com.facebook.presto.spi.function.StaticMethodPointer;
 import com.facebook.presto.spi.function.TypeParameter;
 import com.facebook.presto.spi.function.TypeParameterSpecialization;
 import com.facebook.presto.sql.gen.lambda.LambdaFunctionInterface;
@@ -38,23 +36,16 @@ import static com.facebook.presto.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMEN
 import static com.facebook.presto.util.Failures.checkCondition;
 
 @ScalarFunction(value = "array_sort", descriptor = @ScalarFunctionDescriptor(
-        isAccessingInputValues = true,
-        argumentIndicesContainingMapOrArray = {0},
-        outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "allSubfieldsRequired")},
         lambdaDescriptors = {
                 @ScalarFunctionLambdaDescriptor(
                         callArgumentIndex = 1,
                         lambdaArgumentDescriptors = {
                                 @ScalarFunctionLambdaArgumentDescriptor(
                                         lambdaArgumentIndex = 0,
-                                        callArgumentIndex = 0,
-                                        lambdaArgumentToInputTransformationFunction = @StaticMethodPointer(
-                                                clazz = ComplexTypeFunctionDescriptor.class, method = "prependAllSubscripts")),
+                                        callArgumentIndex = 0),
                                 @ScalarFunctionLambdaArgumentDescriptor(
                                         lambdaArgumentIndex = 1,
-                                        callArgumentIndex = 0,
-                                        lambdaArgumentToInputTransformationFunction = @StaticMethodPointer(
-                                                clazz = ComplexTypeFunctionDescriptor.class, method = "prependAllSubscripts"))})}))
+                                        callArgumentIndex = 0)})}))
 @Description("Sorts the given array with a lambda comparator.")
 public final class ArraySortComparatorFunction
 {

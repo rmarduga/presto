@@ -25,7 +25,6 @@ import com.facebook.presto.spi.function.TypeParameter;
 
 @ScalarFunction(value = "cardinality", descriptor = @ScalarFunctionDescriptor(
         isAccessingInputValues = false,
-        argumentIndicesContainingMapOrArray = {0},
         outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "clearRequiredSubfields")},
         lambdaDescriptors = {}))
 @Description("Returns the cardinality (the number of key-value pairs) of the map")

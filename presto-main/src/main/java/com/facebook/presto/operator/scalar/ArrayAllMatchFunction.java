@@ -33,8 +33,6 @@ import static java.lang.Boolean.FALSE;
 
 @Description("Returns true if all elements of the array match the given predicate")
 @ScalarFunction(value = "all_match", descriptor = @ScalarFunctionDescriptor(
-        isAccessingInputValues = true,
-        argumentIndicesContainingMapOrArray = {0},
         outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "clearRequiredSubfields")},
         lambdaDescriptors = {
                 @ScalarFunctionLambdaDescriptor(
@@ -42,9 +40,7 @@ import static java.lang.Boolean.FALSE;
                         lambdaArgumentDescriptors = {
                             @ScalarFunctionLambdaArgumentDescriptor(
                                     lambdaArgumentIndex = 0,
-                                    callArgumentIndex = 0,
-                                    lambdaArgumentToInputTransformationFunction = @StaticMethodPointer(
-                                            clazz = ComplexTypeFunctionDescriptor.class, method = "prependAllSubscripts"))})}))
+                                    callArgumentIndex = 0)})}))
 public final class ArrayAllMatchFunction
 {
     private ArrayAllMatchFunction() {}

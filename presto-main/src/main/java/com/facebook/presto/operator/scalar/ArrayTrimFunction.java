@@ -16,12 +16,10 @@ package com.facebook.presto.operator.scalar;
 import com.facebook.presto.common.block.Block;
 import com.facebook.presto.common.type.StandardTypes;
 import com.facebook.presto.common.type.Type;
-import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
 import com.facebook.presto.spi.function.Description;
 import com.facebook.presto.spi.function.ScalarFunction;
 import com.facebook.presto.spi.function.ScalarFunctionDescriptor;
 import com.facebook.presto.spi.function.SqlType;
-import com.facebook.presto.spi.function.StaticMethodPointer;
 import com.facebook.presto.spi.function.TypeParameter;
 
 import static com.facebook.presto.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
@@ -30,8 +28,6 @@ import static java.lang.Math.toIntExact;
 
 @ScalarFunction(value = "trim_array", descriptor = @ScalarFunctionDescriptor(
         isAccessingInputValues = false,
-        argumentIndicesContainingMapOrArray = {0},
-        outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "allSubfieldsRequired")},
         lambdaDescriptors = {}))
 @Description("Remove elements from the end of array")
 public final class ArrayTrimFunction

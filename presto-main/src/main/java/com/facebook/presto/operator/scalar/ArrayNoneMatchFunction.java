@@ -31,8 +31,6 @@ import io.airlift.slice.Slice;
 
 @Description("Returns true if all elements of the array don't match the given predicate")
 @ScalarFunction(value = "none_match", descriptor = @ScalarFunctionDescriptor(
-        isAccessingInputValues = true,
-        argumentIndicesContainingMapOrArray = {0},
         outputToInputTransformationFunction = {@StaticMethodPointer(clazz = ComplexTypeFunctionDescriptor.class, method = "clearRequiredSubfields")},
         lambdaDescriptors = {
                 @ScalarFunctionLambdaDescriptor(
@@ -40,9 +38,7 @@ import io.airlift.slice.Slice;
                         lambdaArgumentDescriptors = {
                                 @ScalarFunctionLambdaArgumentDescriptor(
                                         lambdaArgumentIndex = 0,
-                                        callArgumentIndex = 0,
-                                        lambdaArgumentToInputTransformationFunction = @StaticMethodPointer(
-                                                clazz = ComplexTypeFunctionDescriptor.class, method = "prependAllSubscripts"))})}))
+                                        callArgumentIndex = 0)})}))
 public final class ArrayNoneMatchFunction
 {
     private ArrayNoneMatchFunction() {}
