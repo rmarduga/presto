@@ -395,15 +395,15 @@ query. Consider the example below.
 
 .. code-block:: sql
 
-CREATE TABLE my_table (y array(row(a bigint, b varchar, c double, d row(d1 bigint, d2 double))))
+CREATE TABLE my_table (array_of_structs array(row(a bigint, b varchar, c double, d row(d1 bigint, d2 double))))
 
-SELECT CARDINALITY(FILTER(y, x -> x.a > 0)) FROM my_table
+SELECT CARDINALITY(FILTER(array_of_structs, x -> x.a > 0)) FROM my_table
 
-SELECT FILTER(y, x -> x.a > 0) FROM my_table
+SELECT FILTER(array_of_structs, x -> x.a > 0) FROM my_table
 
 
-In query ``SELECT CARDINALITY(FILTER(y, x -> x.a > 0)) FROM my_table``, we need only ``y[*].x`` subfield for executing the query. However, in query
-``SELECT FILTER(y, x -> x.a > 0) FROM my_table`` we need all subfields of column y. That is due to the difference in intrinsic properties of these functions.
+In query ``SELECT CARDINALITY(FILTER(array_of_structs, x -> x.a > 0)) FROM my_table``, we need only ``array_of_structs[*].x`` subfield for executing the query. However, in query
+``SELECT FILTER(array_of_structs, x -> x.a > 0) FROM my_table`` we need all subfields of column y. That is due to the difference in intrinsic properties of these functions.
 Complex type function descriptor captures those properties.
 
 Complex type function descriptor could be defined for ``@ScalarFunction`` and ``@CodegenScalarFunction`` annotation using ``descriptor`` parameter.
@@ -416,7 +416,6 @@ Complex type function descriptor could be defined for ``@ScalarFunction`` and ``
         outputToInputTransformationFunction = "clearRequiredSubfields",
         lambdaDescriptors = {
                     @ScalarFunctionLambdaDescriptor(
-                        callArgumentIndex = 1,
                         lambdaArgumentDescriptors = {
                                 @ScalarFunctionLambdaArgumentDescriptor(callArgumentIndex = 0)})}))
 public final class ArrayAnyMatchFunction
@@ -431,11 +430,7 @@ public final class ArrayAnyMatchFunction
 
 * ``lambdaDescriptors``:
   Contains the array of ``@ScalarFunctionLambdaDescriptor`` for each lambda that this function accepts.
-  ``@ScalarFunctionLambdaDescriptor`` contains two properties:
-
-  * ``callArgumentIndex``:
-    Index of the argument in the Call expression of the lambda function that this LambdaDescriptor represents. For example, function ``ANY_MATCH`` accepts only one lambda in its
-    second argument with index 1 in a 0-indexed array of call arguments. Therefore, ``callArgumentIndex`` for this lambda descriptor is 1.
+  ``@ScalarFunctionLambdaDescriptor`` contains only one property:
 
   * ``lambdaArgumentDescriptors``:
     Contains the array of ``@ScalarFunctionLambdaArgumentDescriptor`` for each argument that lambda accepts.
@@ -443,7 +438,11 @@ public final class ArrayAnyMatchFunction
 
     * ``@callArgumentIndex``:
       Index of the function argument that contains the function input (Array or Map), to which this lambda argument relate to.
-      Example: ``SELECT ANY_MATCH(y, x -> x.a > 0) FROM my_table``. The lambda passed to the ``ANY_MATCH`` function will be invoked internally in ``ANY_MATCH`` function
+      Example 1: ``SELECT ANY_MATCH(array_of_structs, x -> x.a > 0) FROM my_table``. The lambda passed to the ``ANY_MATCH`` function will be invoked internally in ``ANY_MATCH``
+      function passing the element of the array, which ``ANY_MATCH`` receives in the first argument (with index 0 in a 0-indexed array of
+      function arguments) of the ``ANY_MATCH`` function.
+      Therefore, ``@callArgumentIndex`` of the ``@ScalarFunctionLambdaArgumentDescriptor`` for the  ``ANY_MATCH`` function should be `0`.
+      Example 2: ``SELECT MAP_FILTER(map_struct_to_struct, (key, value) -> key.field_k > 0 && value.field_v > 0) FROM my_table``. The lambda passed to the ``ANY_MATCH`` function will be invoked internally in ``ANY_MATCH`` function
       passing the element of the array, which ``ANY_MATCH`` receives in the first argument (with index 0 in a 0-indexed array of
       function arguments) of the ``ANY_MATCH`` function.
       Therefore, ``@callArgumentIndex`` of the ``@ScalarFunctionLambdaArgumentDescriptor`` for the  ``ANY_MATCH`` function should be `0`.
@@ -452,15 +451,15 @@ public final class ArrayAnyMatchFunction
       Contains the transformation function between the subfields of this lambda argument and the input of the function.
       Default value for this parameter is ``"prependAllSubscripts"``, will add prefix ``[*]`` to the
       path of the subfield, which is correct for 99% of the functions.
-      Example: ``SELECT ANY_MATCH(y, x -> x.a > 0) FROM my_table``. Even though in the lambda the access subfield has path `a`, we need to add the prefix ``[*]``, because `y`
-      is of array type.
+      Example: ``SELECT ANY_MATCH(array_of_structs, x -> x.a > 0) FROM my_table``. Even though in the lambda the access subfield has path `a`,
+      we need to add the prefix ``[*]``, because ``array_of_structs`` is of array type.
 
   Default value of the ``lambdaDescriptors`` is an empty array. If function does not accept any lambda parameter, then ``lambdaDescriptors`` should be an empty array.
 
 * ``argumentIndicesContainingMapOrArray``:
-  Consider ``TRIM_ARRAY`` function in this example: ``SELECT ANY_MATCH(TRIM_ARRAY(y, 5), x -> x.a > 0) FROM my_table``.
+  Consider ``TRIM_ARRAY`` function in this example: ``SELECT ANY_MATCH(TRIM_ARRAY(array_of_structs, 5), x -> x.a > 0) FROM my_table``.
   By default, the optimizer passes the subfield accessed in outer functions (here, subfield ``[*].a``, which accessed in function ``ANY_MATCH``) to all array or map arguments
-  (here, to the array `y`).
+  (here, to the array ``array_of_structs``).
   Now, consider function ``MAP`` in this example below.
 
   .. code-block:: sql
@@ -481,14 +480,14 @@ public final class ArrayAnyMatchFunction
   example:
 
   .. code-block:: sql
-  CREATE TABLE my_table (z array(array(row(p bigint, e row(e1 bigint, e2 varchar)))))
+  CREATE TABLE my_table (2d_array_of_structs array(array(row(p bigint, e row(e1 bigint, e2 varchar)))))
 
-  SELECT TRANSFORM(FLATTEN(z), x -> x.p) FROM my_table
+  SELECT TRANSFORM(FLATTEN(2d_array_of_structs), x -> x.p) FROM my_table
 
-  Here, column `z` is a 2-dimensional array or rows. Function ``FLATTEN`` produces the 1-dimensional array of rows. In ``TRANSFORM``, subfield ``[*].p`` is accessed. The challenge
-  now is to correctly attribute accessed subfield ``[*].p`` to the original column `z` where the path of the subfield `p` is ``[*][*].p``. This is when
-  ``outputToInputTransformationFunction`` comes into play. Because of the internal property of the ``FLATTEN`` function, for any subfield that accessed in outer calls we need to
-  transform the path of the subfield and add additional ``[*]`` prefix.
+  Here, column ``2d_array_of_structs`` is a 2-dimensional array or rows. Function ``FLATTEN`` produces the 1-dimensional array of rows. In ``TRANSFORM``,
+  subfield ``[*].p`` is accessed. The challenge now is to correctly attribute accessed subfield ``[*].p`` to the original column ``2d_array_of_structs`` where the path of the
+  subfield `p` is ``[*][*].p``. This is when ``outputToInputTransformationFunction`` comes into play. Because of the internal property of the ``FLATTEN`` function,
+  for any subfield that accessed in outer calls we need to transform the path of the subfield and add additional ``[*]`` prefix.
 
   There are several pre-defined values for ``outputToInputTransformationFunction`` parameter:
 
