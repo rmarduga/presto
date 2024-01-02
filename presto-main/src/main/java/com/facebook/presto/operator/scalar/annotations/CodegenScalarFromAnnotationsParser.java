@@ -129,7 +129,8 @@ public class CodegenScalarFromAnnotationsParser
                 functionDescriptor.getLambdaDescriptors(),
                 functionDescriptor.getArgumentIndicesContainingMapOrArray(),
                 functionDescriptor.getOutputToInputTransformationFunction(),
-                signature))
+                signature,
+                functionDescriptor.isChecksAgainstFunctionSignatureEnabled()))
         {
             @Override
             public BuiltInScalarFunctionImplementation specialize(BoundVariables boundVariables, int arity, FunctionAndTypeManager functionAndTypeManager)

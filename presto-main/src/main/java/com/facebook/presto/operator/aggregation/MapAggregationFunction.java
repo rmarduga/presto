@@ -27,14 +27,18 @@ import com.facebook.presto.metadata.SqlAggregationFunction;
 import com.facebook.presto.operator.aggregation.state.KeyValuePairStateSerializer;
 import com.facebook.presto.operator.aggregation.state.KeyValuePairsState;
 import com.facebook.presto.operator.aggregation.state.KeyValuePairsStateFactory;
+import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
+import com.facebook.presto.spi.function.SubfieldPathTransformationFunctions;
 import com.facebook.presto.spi.function.aggregation.Accumulator;
 import com.facebook.presto.spi.function.aggregation.AggregationMetadata;
 import com.facebook.presto.spi.function.aggregation.AggregationMetadata.AccumulatorStateDescriptor;
 import com.facebook.presto.spi.function.aggregation.GroupedAccumulator;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import java.lang.invoke.MethodHandle;
 import java.util.List;
+import java.util.Optional;
 
 import static com.facebook.presto.common.type.TypeSignature.parseTypeSignature;
 import static com.facebook.presto.operator.aggregation.AggregationUtils.generateAggregationName;
@@ -51,6 +55,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 public class MapAggregationFunction
         extends SqlAggregationFunction
 {
+    private final ComplexTypeFunctionDescriptor descriptor;
+
     public static final MapAggregationFunction MAP_AGG = new MapAggregationFunction();
     public static final String NAME = "map_agg";
     private static final MethodHandle INPUT_FUNCTION = methodHandle(MapAggregationFunction.class, "input", Type.class, Type.class, KeyValuePairsState.class, Block.class, Block.class, int.class);
@@ -64,6 +70,14 @@ public class MapAggregationFunction
                 ImmutableList.of(),
                 parseTypeSignature("map(K,V)"),
                 ImmutableList.of(parseTypeSignature("K"), parseTypeSignature("V")));
+
+        this.descriptor = new ComplexTypeFunctionDescriptor(
+                false,
+                ImmutableList.of(),
+                Optional.of(ImmutableSet.of(1)),
+                Optional.of(SubfieldPathTransformationFunctions::removeFirstPathElement),
+                getSignature(),
+                false);
     }
 
     @Override
@@ -168,5 +182,11 @@ public class MapAggregationFunction
             // 5X worse without this fix.
             ((MapBlockBuilder) out).loadHashTables();
         }
+    }
+
+    @Override
+    public ComplexTypeFunctionDescriptor getComplexTypeFunctionDescriptor()
+    {
+        return descriptor;
     }
 }

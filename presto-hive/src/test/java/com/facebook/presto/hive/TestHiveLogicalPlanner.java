@@ -1218,12 +1218,14 @@ public class TestHiveLogicalPlanner
             assertUpdate("CREATE TABLE " + tableName + "(id bigint, " +
                     "a array(bigint), " +
                     "b array(array(varchar)), " +
+                    "i bigint, " +
                     "mi map(int,array(row(a1 bigint, a2 double))), " +
                     "mv map(varchar,array(row(a1 bigint, a2 double))), " +
                     "m1 map(int,row(a1 bigint, a2 double)), " +
                     "m2 map(int,row(a1 bigint, a2 double)), " +
                     "m3 map(int,row(a1 bigint, a2 double)), " +
                     "r row(a array(row(a1 bigint, a2 double)), i bigint, d row(d1 bigint, d2 double)), " +
+                    "rr row(a array(row(a1 bigint, a2 double)), i bigint, d row(d1 bigint, d2 double)), " +
                     "y array(row(a bigint, b varchar, c double, d row(d1 bigint, d2 double))), " +
                     "yy array(row(a bigint, b varchar, c double, d row(d1 bigint, d2 double))), " +
                     "yyy array(row(a bigint, b varchar, c double, d row(d1 bigint, d2 double))), " +
@@ -1460,6 +1462,16 @@ public class TestHiveLogicalPlanner
             // is_null
             assertPushdownSubfields("SELECT ANY_MATCH(y, x -> x IS NULL)  FROM " + tableName, tableName,
                     ImmutableMap.of("y", toSubfields("y[*].$"))); // only checks whether entire struct is null and does not access struct subfields
+
+            // Allow sub-field pruning to pass through the aggregation functions
+            assertPushdownSubfields("SELECT ARBITRARY(r.d.d1)  FROM " + tableName + " GROUP BY i", tableName,
+                    ImmutableMap.of("r", toSubfields("r.d.d1")));
+
+            assertPushdownSubfields("SELECT CARDINALITY(MAP_FILTER(MAP_AGG(r, r), (k, v) -> k.d.d1 > 0 AND v.d.d1 > 0))  FROM " + tableName + " GROUP BY i", tableName,
+                    ImmutableMap.of("r", toSubfields("r.d.d1"))); // only checks whether entire struct is null and does not access struct subfields
+
+            assertPushdownSubfields("SELECT ANY_MATCH(ARRAY_AGG(r), x -> x.d.d1 > 0)  FROM " + tableName + " GROUP BY i", tableName,
+                    ImmutableMap.of("r", toSubfields("r.d.d1"))); // only checks whether entire struct is null and does not access struct subfields
 
             // Queries that lack full support
 

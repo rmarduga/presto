@@ -26,15 +26,19 @@ import com.facebook.presto.operator.aggregation.BuiltInAggregationFunctionImplem
 import com.facebook.presto.spi.function.AccumulatorState;
 import com.facebook.presto.spi.function.AccumulatorStateFactory;
 import com.facebook.presto.spi.function.AccumulatorStateSerializer;
+import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
+import com.facebook.presto.spi.function.SubfieldPathTransformationFunctions;
 import com.facebook.presto.spi.function.aggregation.Accumulator;
 import com.facebook.presto.spi.function.aggregation.AggregationMetadata;
 import com.facebook.presto.spi.function.aggregation.AggregationMetadata.AccumulatorStateDescriptor;
 import com.facebook.presto.spi.function.aggregation.AggregationMetadata.ParameterMetadata;
 import com.facebook.presto.spi.function.aggregation.GroupedAccumulator;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import java.lang.invoke.MethodHandle;
 import java.util.List;
+import java.util.Optional;
 
 import static com.facebook.presto.common.type.TypeSignature.parseTypeSignature;
 import static com.facebook.presto.operator.aggregation.AggregationUtils.generateAggregationName;
@@ -58,6 +62,8 @@ public class ArrayAggregationFunction
     private final boolean legacyArrayAgg;
     private final ArrayAggGroupImplementation groupMode;
 
+    private final ComplexTypeFunctionDescriptor descriptor;
+
     public ArrayAggregationFunction(boolean legacyArrayAgg, ArrayAggGroupImplementation groupMode)
     {
         super(NAME,
@@ -67,6 +73,13 @@ public class ArrayAggregationFunction
                 ImmutableList.of(parseTypeSignature("T")));
         this.legacyArrayAgg = legacyArrayAgg;
         this.groupMode = requireNonNull(groupMode, "groupMode is null");
+        this.descriptor = new ComplexTypeFunctionDescriptor(
+                false,
+                ImmutableList.of(),
+                Optional.of(ImmutableSet.of(0)),
+                Optional.of(SubfieldPathTransformationFunctions::removeFirstPathElement),
+                getSignature(),
+                false);
     }
 
     @Override
@@ -149,5 +162,11 @@ public class ArrayAggregationFunction
             state.forEach((block, position) -> elementType.appendTo(block, position, entryBuilder));
             out.closeEntry();
         }
+    }
+
+    @Override
+    public ComplexTypeFunctionDescriptor getComplexTypeFunctionDescriptor()
+    {
+        return descriptor;
     }
 }

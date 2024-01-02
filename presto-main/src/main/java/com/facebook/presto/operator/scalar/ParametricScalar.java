@@ -54,7 +54,8 @@ public class ParametricScalar
                 details.getFunctionDescriptor().getLambdaDescriptors(),
                 details.getFunctionDescriptor().getArgumentIndicesContainingMapOrArray(),
                 details.getFunctionDescriptor().getOutputToInputTransformationFunction(),
-                signature);
+                signature,
+                details.getFunctionDescriptor().isChecksAgainstFunctionSignatureEnabled());
     }
 
     @Override

@@ -184,7 +184,8 @@ public class FunctionMetadata
                 functionDescriptor.getLambdaDescriptors(),
                 functionDescriptor.getArgumentIndicesContainingMapOrArray(),
                 functionDescriptor.getOutputToInputTransformationFunction(),
-                argumentTypes);
+                argumentTypes,
+                functionDescriptor.isChecksAgainstFunctionSignatureEnabled());
     }
     public FunctionKind getFunctionKind()
     {

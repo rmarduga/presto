@@ -83,6 +83,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static com.facebook.presto.SystemSessionProperties.isLegacyUnnest;
@@ -152,7 +153,6 @@ public class PushdownSubfields
         private final StandardFunctionResolution functionResolution;
         private final ExpressionOptimizer expressionOptimizer;
         private final SubfieldExtractor subfieldExtractor;
-        private static final QualifiedObjectName ARBITRARY_AGGREGATE_FUNCTION = QualifiedObjectName.valueOf(DEFAULT_NAMESPACE, "arbitrary");
         private boolean planChanged;
 
         public Rewriter(Session session, Metadata metadata)
@@ -183,11 +183,15 @@ public class PushdownSubfields
                 VariableReferenceExpression variable = entry.getKey();
                 AggregationNode.Aggregation aggregation = entry.getValue();
 
-                // Allow sub-field pruning to pass through the arbitrary() aggregation
-                QualifiedObjectName aggregateName = metadata.getFunctionAndTypeManager().getFunctionMetadata(aggregation.getCall().getFunctionHandle()).getName();
-                if (ARBITRARY_AGGREGATE_FUNCTION.equals(aggregateName)) {
-                    checkState(aggregation.getArguments().get(0) instanceof VariableReferenceExpression);
-                    context.get().addAssignment(variable, (VariableReferenceExpression) aggregation.getArguments().get(0));
+                ComplexTypeFunctionDescriptor functionDescriptor = metadata.getFunctionAndTypeManager().getFunctionMetadata(aggregation.getCall().getFunctionHandle()).getDescriptor();
+
+                // Allow sub-field pruning to pass through the configured aggregation functions
+                if (functionDescriptor.getArgumentIndicesContainingMapOrArray().isPresent() &&
+                        !functionDescriptor.getArgumentIndicesContainingMapOrArray().get().isEmpty()) {
+                    for (Integer i : functionDescriptor.getArgumentIndicesContainingMapOrArray().get()) {
+                        checkState(aggregation.getArguments().get(i) instanceof VariableReferenceExpression);
+                        context.get().addAssignment(variable, (VariableReferenceExpression) aggregation.getArguments().get(i), functionDescriptor.getOutputToInputTransformationFunction());
+                    }
                 }
                 else {
                     aggregation.getArguments().forEach(expression -> expression.accept(subfieldExtractor, context.get()));
@@ -876,12 +880,19 @@ public class PushdownSubfields
 
             private void addAssignment(VariableReferenceExpression variable, VariableReferenceExpression otherVariable)
             {
+                addAssignment(variable, otherVariable, Optional.empty());
+            }
+
+            private void addAssignment(VariableReferenceExpression variable, VariableReferenceExpression otherVariable, Optional<Function<Set<Subfield>, Set<Subfield>>> subfieldTransformationFunction)
+            {
                 if (variables.contains(variable)) {
                     variables.add(otherVariable);
                     return;
                 }
 
-                List<Subfield> matchingSubfields = findSubfields(variable.getName());
+                List<Subfield> matchingSubfields = subfieldTransformationFunction.isPresent() ?
+                        ImmutableList.copyOf(subfieldTransformationFunction.get().apply(ImmutableSet.copyOf(findSubfields(variable.getName())))) :
+                        findSubfields(variable.getName());
                 verify(!matchingSubfields.isEmpty(), "Missing variable: " + variable);
 
                 matchingSubfields.stream()

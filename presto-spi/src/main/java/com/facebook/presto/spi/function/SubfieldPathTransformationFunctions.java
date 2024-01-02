@@ -78,4 +78,17 @@ public class SubfieldPathTransformationFunctions
                                 Stream.concat(Arrays.asList(subfield.getPath().get(0)).stream(), subfield.getPath().stream().skip(2)).collect(Collectors.toList()))))
                 .collect(Collectors.toSet());
     }
+
+    /**
+     * Removes the first path element from every subfield in 'subfields'.
+     *
+     * @param subfields set of Subfield to transform
+     * @return transformed copy of the input set of subfields with removed the first path element.
+     */
+    public static Set<Subfield> removeFirstPathElement(Set<Subfield> subfields)
+    {
+        return subfields.stream().map(subfield -> new Subfield(subfield.getRootName(),
+                        subfield.getPath().stream().skip(1).collect(Collectors.toList())))
+                .collect(Collectors.toSet());
+    }
 }

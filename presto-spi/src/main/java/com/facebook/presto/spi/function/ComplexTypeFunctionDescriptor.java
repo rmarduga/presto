@@ -77,6 +77,23 @@ public class ComplexTypeFunctionDescriptor
      */
     private final List<LambdaDescriptor> lambdaDescriptors;
 
+    /**
+     * Contains the description of all lambdas that this function accepts.
+     * If function does not accept any lambda parameter, then <code>lambdaDescriptors</code> should be an empty list.
+     */
+    private final boolean checksAgainstFunctionSignatureEnabled;
+
+    public ComplexTypeFunctionDescriptor(
+            boolean isAccessingInputValues,
+            List<LambdaDescriptor> lambdaDescriptors,
+            Optional<Set<Integer>> argumentIndicesContainingMapOrArray,
+            Optional<Function<Set<Subfield>, Set<Subfield>>> outputToInputTransformationFunction,
+            Signature signature,
+            boolean checksAgainstFunctionSignatureEnabled)
+    {
+        this(isAccessingInputValues, lambdaDescriptors, argumentIndicesContainingMapOrArray, outputToInputTransformationFunction, signature.getArgumentTypes(), checksAgainstFunctionSignatureEnabled);
+    }
+
     public ComplexTypeFunctionDescriptor(
             boolean isAccessingInputValues,
             List<LambdaDescriptor> lambdaDescriptors,
@@ -84,16 +101,21 @@ public class ComplexTypeFunctionDescriptor
             Optional<Function<Set<Subfield>, Set<Subfield>>> outputToInputTransformationFunction,
             Signature signature)
     {
-        this(isAccessingInputValues, lambdaDescriptors, argumentIndicesContainingMapOrArray, outputToInputTransformationFunction, signature.getArgumentTypes());
+        this(isAccessingInputValues, lambdaDescriptors, argumentIndicesContainingMapOrArray, outputToInputTransformationFunction, signature.getArgumentTypes(), false);
     }
+
     public ComplexTypeFunctionDescriptor(
             boolean isAccessingInputValues,
             List<LambdaDescriptor> lambdaDescriptors,
             Optional<Set<Integer>> argumentIndicesContainingMapOrArray,
             Optional<Function<Set<Subfield>, Set<Subfield>>> outputToInputTransformationFunction,
-            List<TypeSignature> argumentTypes)
+            List<TypeSignature> argumentTypes,
+            boolean checksAgainstFunctionSignatureEnabled)
     {
-        this(isAccessingInputValues, deduceLambdaDescriptorsCallArgumentIndex(lambdaDescriptors, argumentTypes), argumentIndicesContainingMapOrArray, outputToInputTransformationFunction);
+        this(isAccessingInputValues, deduceLambdaDescriptorsCallArgumentIndex(lambdaDescriptors, argumentTypes), argumentIndicesContainingMapOrArray, outputToInputTransformationFunction, checksAgainstFunctionSignatureEnabled);
+        if (!checksAgainstFunctionSignatureEnabled) {
+            return;
+        }
         if (argumentIndicesContainingMapOrArray.isPresent()) {
             checkArgument(argumentIndicesContainingMapOrArray.get().stream().allMatch(index -> index >= 0 &&
                     index < argumentTypes.size() &&
@@ -119,6 +141,16 @@ public class ComplexTypeFunctionDescriptor
             Optional<Set<Integer>> argumentIndicesContainingMapOrArray,
             Optional<Function<Set<Subfield>, Set<Subfield>>> outputToInputTransformationFunction)
     {
+        this(isAccessingInputValues, lambdaDescriptors, argumentIndicesContainingMapOrArray, outputToInputTransformationFunction, false);
+    }
+
+    public ComplexTypeFunctionDescriptor(
+            boolean isAccessingInputValues,
+            List<LambdaDescriptor> lambdaDescriptors,
+            Optional<Set<Integer>> argumentIndicesContainingMapOrArray,
+            Optional<Function<Set<Subfield>, Set<Subfield>>> outputToInputTransformationFunction,
+            boolean checksAgainstFunctionSignatureEnabled)
+    {
         requireNonNull(argumentIndicesContainingMapOrArray, "argumentIndicesContainingMapOrArray is null");
         this.isAccessingInputValues = isAccessingInputValues;
         this.lambdaDescriptors = unmodifiableList(requireNonNull(lambdaDescriptors, "lambdaDescriptors is null"));
@@ -126,6 +158,7 @@ public class ComplexTypeFunctionDescriptor
                 Optional.of(unmodifiableSet(argumentIndicesContainingMapOrArray.get())) :
                 Optional.empty();
         this.outputToInputTransformationFunction = requireNonNull(outputToInputTransformationFunction, "outputToInputTransformationFunction is null");
+        this.checksAgainstFunctionSignatureEnabled = checksAgainstFunctionSignatureEnabled;
     }
 
     private static List<LambdaDescriptor> deduceLambdaDescriptorsCallArgumentIndex(List<LambdaDescriptor> lambdaDescriptors, List<TypeSignature> functionArguments)
@@ -178,6 +211,11 @@ public class ComplexTypeFunctionDescriptor
     public Optional<Function<Set<Subfield>, Set<Subfield>>> getOutputToInputTransformationFunction()
     {
         return outputToInputTransformationFunction;
+    }
+
+    public boolean isChecksAgainstFunctionSignatureEnabled()
+    {
+        return checksAgainstFunctionSignatureEnabled;
     }
 
     @Override

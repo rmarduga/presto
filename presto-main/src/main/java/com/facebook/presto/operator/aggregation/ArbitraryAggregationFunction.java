@@ -28,14 +28,17 @@ import com.facebook.presto.operator.aggregation.state.NullableLongState;
 import com.facebook.presto.operator.aggregation.state.StateCompiler;
 import com.facebook.presto.spi.function.AccumulatorState;
 import com.facebook.presto.spi.function.AccumulatorStateSerializer;
+import com.facebook.presto.spi.function.ComplexTypeFunctionDescriptor;
 import com.facebook.presto.spi.function.aggregation.Accumulator;
 import com.facebook.presto.spi.function.aggregation.AggregationMetadata;
 import com.facebook.presto.spi.function.aggregation.AggregationMetadata.AccumulatorStateDescriptor;
 import com.facebook.presto.spi.function.aggregation.GroupedAccumulator;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import java.lang.invoke.MethodHandle;
 import java.util.List;
+import java.util.Optional;
 
 import static com.facebook.presto.common.type.TypeSignature.parseTypeSignature;
 import static com.facebook.presto.operator.aggregation.AggregationUtils.generateAggregationName;
@@ -50,6 +53,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 public class ArbitraryAggregationFunction
         extends SqlAggregationFunction
 {
+    private final ComplexTypeFunctionDescriptor descriptor;
     public static final ArbitraryAggregationFunction ARBITRARY_AGGREGATION = new ArbitraryAggregationFunction();
     private static final String NAME = "arbitrary";
 
@@ -83,6 +87,13 @@ public class ArbitraryAggregationFunction
                 ImmutableList.of(),
                 parseTypeSignature("T"),
                 ImmutableList.of(parseTypeSignature("T")));
+        this.descriptor = new ComplexTypeFunctionDescriptor(
+                false,
+                ImmutableList.of(),
+                Optional.of(ImmutableSet.of(0)),
+                Optional.empty(),
+                ImmutableList.of(parseTypeSignature("T")),
+                false);
     }
 
     protected static String getAnyValueName()
@@ -94,6 +105,12 @@ public class ArbitraryAggregationFunction
     public String getDescription()
     {
         return "return an arbitrary non-null input value";
+    }
+
+    @Override
+    public ComplexTypeFunctionDescriptor getComplexTypeFunctionDescriptor()
+    {
+        return descriptor;
     }
 
     @Override
